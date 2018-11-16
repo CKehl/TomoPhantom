@@ -37,7 +37,9 @@
  * 10. c - size object
  * 11. psi_gr1 - rotation angle1
  * 12. psi_gr2 - rotation angle2
- * 12. psi_gr3 - rotation angle3
+ * 13. psi_gr3 - rotation angle3
+ * 14. tt - temporal index
+ * 15. s - square-shape interpolant [0,1[
  *
  * Output:
  * 1. The analytical phantom size of [N x N x N] or a temporal 4D phantom (N x N x N x time-frames)
@@ -55,10 +57,11 @@ float TomoP3DObject_core(float *A, int N, char *Object,
         float psi_gr1, /* rotation angle1 */
         float psi_gr2, /* rotation angle2 */
         float psi_gr3, /* rotation angle3 */
-        int tt /*temporal index, 0 - for stationary */)
+        int tt, /*temporal index, 0 - for stationary */
+		float s /* square-shape interpolant */)
 {
     int i, j, k;
-    float Tomorange_Xmin, Tomorange_Xmax, H_x, C1, a2, b2, c2, phi_rot_radian, sin_phi, cos_phi, aa,bb,cc, psi1, psi2, psi3, T;
+    float Tomorange_Xmin, Tomorange_Xmax, H_x, C1, a2, b2, c2, s2, phi_rot_radian, sin_phi, cos_phi, aa,bb,cc, psi1, psi2, psi3, T;
     float *Tomorange_X_Ar=NULL, *Xdel = NULL, *Ydel = NULL, *Zdel = NULL;
     Tomorange_X_Ar = malloc(N*sizeof(float));
     if(Tomorange_X_Ar == NULL ) printf("Allocation of 'Tomorange_X_Ar' failed");
@@ -97,6 +100,8 @@ float TomoP3DObject_core(float *A, int N, char *Object,
     b2 = 1.0f/(b*b);
     c2 = 1.0f/(c*c);
     matrot3(bs,psi1,psi2,psi3); /* rotation of 3x3 matrix */
+    s2 = powf(s,2);
+    float s4 = powf(s,4);
     
     xh3[0] = x0; xh3[1] = y0; xh3[2] = z0;
     matvet3(bs,xh3,xh);  /* matrix-vector multiplication */
@@ -104,7 +109,9 @@ float TomoP3DObject_core(float *A, int N, char *Object,
     float xh1[3];
     float xh2[3];
     
-    if ((strcmp("gaussian",Object) == 0) ||  (strcmp("paraboloid",Object) == 0) || (strcmp("ellipsoid",Object) == 0) || (strcmp("cone",Object) == 0)) {
+    //printf("%f\n",s);
+
+    if ((strcmp("gaussian",Object) == 0) ||  (strcmp("paraboloid",Object) == 0) || (strcmp("ellipsoid",Object) == 0) || (strcmp("cone",Object) == 0) || (strcmp("sphube",Object) == 0)) {
  #pragma omp parallel for shared(A,bs) private(k,i,j,aa,bb,cc,T,xh2,xh1)
         for(k=0; k<N; k++) {
             for(i=0; i<N; i++) {
@@ -125,6 +132,7 @@ float TomoP3DObject_core(float *A, int N, char *Object,
                         cc = c2*powf(Zdel[k],2);
                     }
                     T = (aa + bb + cc);
+                    //Ts = ((aa+bb+cc) - (s2*aa*bb) - (s2*aa*cc) - (s2*bb*cc) + (s4*aa*bb*cc));
                     if (strcmp("gaussian",Object) == 0) {
                         /* The object is a volumetric gaussian */
                         T = C0*expf(C1*T);
@@ -143,6 +151,15 @@ float TomoP3DObject_core(float *A, int N, char *Object,
                         /* the object is a cone */
                         if (T <= 1.0f) T = C0*(1.0f - sqrtf(T));
                         else T = 0.0f;
+                    }
+                    // see 'https://arxiv.org/pdf/1604.02174.pdf' for details
+                    if (strcmp("sphube",Object) == 0) {
+                        /* the object is an ellipsoid */
+                    	T = ((aa+bb+cc) - (s2*aa*bb) - (s2*aa*cc) - (s2*bb*cc) + (s4*aa*bb*cc));
+                        if (T <= 1.0f) {
+                        	//printf("(%i,%i,%i) is inside.\n",i,j,k);
+                        	T = C0;
+                        } else { T = 0.0f; }
                     }
                     A[tt*N*N*N + (k)*N*N + j*N+i] += T;
                 }}}
@@ -205,7 +222,7 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
 {
    
     int Model=0, Components=0, steps = 0, counter=0, ii;
-    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, z0 = 0.0f, a = 0.0f, b = 0.0f, c = 0.0f, psi_gr1 = 0.0f, psi_gr2 = 0.0f, psi_gr3 = 0.0f;    
+    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, z0 = 0.0f, a = 0.0f, b = 0.0f, c = 0.0f, psi_gr1 = 0.0f, psi_gr2 = 0.0f, psi_gr3 = 0.0f, s = 1.0f;
 
     FILE *fp = fopen(ModelParametersFilename, "r"); // read parameters file
     if( fp == NULL ) {
@@ -226,6 +243,8 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
         char tmpstr10[16];
         char tmpstr11[16];
         char tmpstr12[16];
+        char tmpstr13[16];
+        char tmpstr14[16];
         
         while (fgets(str, MAXCHAR, fp) != NULL)
         {
@@ -241,7 +260,9 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                         else {
                             break; }
                         if  (strcmp(tmpstr1,"Components") == 0) Components = atoi(tmpstr2);
+#ifdef DEBUG
                         printf("%s %i\n", "Components:", Components);
+#endif
                         if (Components <= 0) {
                             printf("%s %i\n", "Components cannot be negative, the given value is", Components);
                             break; }
@@ -252,10 +273,14 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                         if (steps <= 0) {
                             printf("%s %i\n", "TimeSteps cannot be negative, the given value is", steps);
                             break; }
+#ifdef DEBUG
                         printf("%s %i\n", "TimeSteps:", steps);
+#endif
                         if (steps == 1) {
                             /**************************************************/
-                            //printf("\n %s %i %s \n", "Stationary 3D model", ModelSelected, " is selected");
+#ifdef DEBUG
+                            printf("\n %s %i %s \n", "Stationary 3D model", ModelSelected, " is selected");
+#endif
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
                                 if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12);
@@ -274,16 +299,19 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                     psi_gr2 = (float)atof(tmpstr11); /* rotation angle 2*/
                                     psi_gr3 = (float)atof(tmpstr12); /* rotation angle 3*/
                                 }
-                                else {
-                                    break; }                               
-                                // printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);                                                          
+                                else { break; }
+#ifdef DEBUG
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
+#endif
 
-                                 TomoP3DObject_core(A, N, tmpstr2, C0, y0, x0, z0, a, b, c, psi_gr1, psi_gr2, psi_gr3, 0); /* python */
+                                TomoP3DObject_core(A, N, tmpstr2, C0, y0, x0, z0, a, b, c, psi_gr1, psi_gr2, psi_gr3, 0, 1.0); /* python */
                             }
                         }
                         else {
                             /**************************************************/
-                            //printf("\n %s \n", "Temporal model is selected");
+#ifdef DEBUG
+                            printf("\n %s \n", "Temporal model is selected");
+#endif
                             /* temporal phantom 3D + time (4D) */
                             
                             float C1 = 0.0f, x1 = 0.0f, y1 = 0.0f, z1 = 0.0f, a1 = 0.0f, b1 = 0.0f, c1 = 0.0f, psi_gr1_1 = 0.0f, psi_gr2_1 = 0.0f, psi_gr3_1 = 0.0f;
@@ -309,7 +337,9 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                 else {
                                     break; }                                
                                 
-                                // printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
+#ifdef DEBUG
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
+#endif
                                 
                                 /* check Endvar relatedparameters */
                                 if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12);
@@ -331,7 +361,9 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                     printf("%s\n", "Cannot find 'Endvar' string in parameters file");
                                     break; }                        
                                 
-                                //printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a1, b1, c1);
+#ifdef DEBUG
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a1, b1, c1);
+#endif
                                 
                                 /*now we know the initial parameters of the object and the final ones. We linearly extrapolate to establish steps and coordinates. */
                                 /* calculating the full distance berween the start and the end points */
@@ -353,7 +385,7 @@ float TomoP3DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                 /*loop over time frames*/
                                 for(tt=0; tt < steps; tt++) {
                                     
-                                    TomoP3DObject_core(A, N, tmpstr2, C_t, y_t, x_t, z_t, a_t, b_t, c_t, phi1_t, phi2_t, phi3_t, tt); /* python */
+                                    TomoP3DObject_core(A, N, tmpstr2, C_t, y_t, x_t, z_t, a_t, b_t, c_t, phi1_t, phi2_t, phi3_t, tt, 1.0); /* python */
                                     
                                     /* calculating new coordinates of an object */
                                     if (distance != 0.0f) {

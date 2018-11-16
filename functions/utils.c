@@ -278,9 +278,10 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
     params_switch[9] = 1; /* a */
     params_switch[10] = 1; /* b */
     params_switch[11] = 1; /* c */
+    params_switch[12] = 1; /* s */
     
     int Model=0, Components=0, steps = 0, counter=0, ii;
-    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, z0 = 0.0f, a = 0.0f, b = 0.0f, c = 0.0f;
+    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, z0 = 0.0f, a = 0.0f, b = 0.0f, c = 0.0f, s = 1.0f;
     
     fp = fopen(ModelParametersFilename, "r");
     if (fp == NULL){

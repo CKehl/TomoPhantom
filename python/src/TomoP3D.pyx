@@ -25,7 +25,7 @@ from enum import Enum
 
 # declare the interface to the C code
 cdef extern float TomoP3DModel_core(float *A, int ModelSelected, int N, char* ModelParametersFilename)
-cdef extern float TomoP3DObject_core(float *A, int N, char *Object, float C0, float x0, float y0, float z0, float a, float b, float c, float psi1, float psi2, float psi3, int tt)
+cdef extern float TomoP3DObject_core(float *A, int N, char *Object, float C0, float x0, float y0, float z0, float a, float b, float c, float psi1, float psi2, float psi3, int tt, float s)
 cdef extern float checkParams3D(int *params_switch, int ModelSelected, char *ModelParametersFilename)
 #cdef extern float buildSino3D_core(float *A, int ModelSelected, int N, int P, float *Th, int AngTot, int CenTypeIn, char* ModelParametersFilename)
 #cdef extern float buildSino3D_core_single(float *A, int N, int P, float *Th, int AngTot, int CenTypeIn, int Object, float C0, float x0, float y0, float z0, float a, float b, float c, float phi_rot)
@@ -42,6 +42,8 @@ cdef packed struct object_3d:
     np.float32_t psi1
     np.float32_t psi2
     np.float32_t psi3
+    int tt
+    np.float32_t s
 
 class Objects3D(Enum):
     '''Enumeration with the available objects for 3D phantoms'''
@@ -51,6 +53,7 @@ class Objects3D(Enum):
     CONE   = 'cone'
     CUBOID      = 'cuboid'
     ELLIPCYLINDER = 'ellipticalcylinder'
+    SPHUBE = 'sphube'
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -141,7 +144,9 @@ def Object(int phantom_size, objlist):
                                         obj['c'], 
                                         obj['phi1'], 
                                         obj['phi2'], 
-                                        obj['phi3'], 0)
+                                        obj['phi3'],
+                                        obj['tt'],
+                                        obj['s'])
     return phantom
 
 def testParamsPY(obj):
@@ -179,6 +184,12 @@ def testParamsPY(obj):
     typecheck = typecheck and type(obj['phi3']) is float
     if not typecheck:
         raise TypeError('phi3 is not a float')
+    typecheck = typecheck and type(obj['tt']) is int
+    if not typecheck:
+        raise TypeError('tt is not an int')
+    typecheck = typecheck and type(obj['s']) is float
+    if not typecheck:
+        raise TypeError('s is not a float')
     
     # range check    
     rangecheck = obj['x0'] >= -1 and obj['x0'] <= 1
@@ -199,6 +210,10 @@ def testParamsPY(obj):
     rangecheck = rangecheck and obj['c'] > 0 and obj['c'] <= 2
     if not rangecheck:
         raise ValueError('c (object size) must be positive in [0,2] range')
+    return rangecheck and typecheck
+    rangecheck = rangecheck and obj['s'] > 0 and obj['s'] <= 1
+    if not rangecheck:
+        raise ValueError('s (cubicle interpolant) must be positive in [0,1] range')
     return rangecheck and typecheck
 
 def testParams3D(obj):
@@ -226,4 +241,8 @@ def testParams3D(obj):
         raise TypeError('b (object size) must be positive in [0,2] range, check <Phantom3DLibrary.dat> file')
     if obj[11] == 0:
         raise TypeError('c (object size) must be positive in [0,2] range, check <Phantom3DLibrary.dat> file')
+    #if obj[12] == 0:
+    #    raise TypeError('c (object size) must be positive in [0,2] range, check <Phantom3DLibrary.dat> file')
+    if obj[13] == 0:
+        raise TypeError('s (cubicle interpolant) must be positive in [0,1] range, check <Phantom3DLibrary.dat> file')
     return 0
