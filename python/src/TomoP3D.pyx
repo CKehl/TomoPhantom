@@ -47,13 +47,14 @@ cdef packed struct object_3d:
 
 class Objects3D(Enum):
     '''Enumeration with the available objects for 3D phantoms'''
-    GAUSSIAN  = 'gaussian'
-    PARABOLOID  = 'paraboloid'
-    ELLIPSOID = 'ellipsoid'
-    CONE   = 'cone'
-    CUBOID      = 'cuboid'
-    ELLIPCYLINDER = 'ellipticalcylinder'
-    SPHUBE = 'sphube'
+    GAUSSIAN      = 'gaussian'
+    PARABOLOID    = 'paraboloid'
+    ELLIPSOID     = 'ellipsoid'
+    CONE          = 'cone'
+    CUBOID        = 'cuboid'
+    #ELLIPCYLINDER = 'ellipticalcylinder'
+    ELLIPCYLINDER = 'elliptical_cylinder'
+    SPHUBE        = 'sphube'
 
 @cython.boundscheck(False)
 @cython.wraparound(False)
@@ -211,9 +212,12 @@ def testParamsPY(obj):
     if not rangecheck:
         raise ValueError('c (object size) must be positive in [0,2] range')
     return rangecheck and typecheck
+    rangecheck = rangecheck and obj['tt'] >= 0
+    if not rangecheck:
+        raise ValueError('tt (time step) must be positive in [0,:] range')
     rangecheck = rangecheck and obj['s'] > 0 and obj['s'] <= 1
     if not rangecheck:
-        raise ValueError('s (cubicle interpolant) must be positive in [0,1] range')
+        raise ValueError('s (straightness) must be positive in [0,1] range')
     return rangecheck and typecheck
 
 def testParams3D(obj):
@@ -241,8 +245,6 @@ def testParams3D(obj):
         raise TypeError('b (object size) must be positive in [0,2] range, check <Phantom3DLibrary.dat> file')
     if obj[11] == 0:
         raise TypeError('c (object size) must be positive in [0,2] range, check <Phantom3DLibrary.dat> file')
-    #if obj[12] == 0:
-    #    raise TypeError('c (object size) must be positive in [0,2] range, check <Phantom3DLibrary.dat> file')
-    if obj[13] == 0:
+    if obj[12] == 0:
         raise TypeError('s (cubicle interpolant) must be positive in [0,1] range, check <Phantom3DLibrary.dat> file')
     return 0

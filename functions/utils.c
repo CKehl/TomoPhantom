@@ -34,11 +34,12 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
     params_switch[7] = 1; /* y0 */
     params_switch[8] = 1; /* a */
     params_switch[9] = 1; /* b */
+    params_switch[10] = 1; /* s */
     
     
     FILE *fp = fopen(ModelParametersFilename, "r"); // read parameters file    
     int Model=0, Components=0, steps = 0, counter=0, ii;
-    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, a = 0.0f, b = 0.0f;
+    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, a = 0.0f, b = 0.0f, s = 1.0f;
     
     if( fp == NULL ) {
         printf("%s %s\n", "Parameters file does not exist or cannot be read!", ModelParametersFilename);
@@ -56,6 +57,7 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
         char tmpstr6[16];
         char tmpstr7[16];
         char tmpstr8[16];
+        char tmpstr9[16];
         
       while (fgets(str, MAXCHAR, fp) != NULL)
         {
@@ -96,7 +98,7 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                             
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                     printf("%s \n", "Unexpected the end of the line (objects loop) in parameters file");
                                     params_switch[0] = 0;
@@ -108,13 +110,14 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                                     y0 = (float)atof(tmpstr5); /* y0 position */
                                     a = (float)atof(tmpstr6); /* a - size object */
                                     b = (float)atof(tmpstr7); /* b - size object */
+                                    s = (float)atof(tmpstr9); /* s - straightness */
                                 }
                                 else {
                                     printf("%s \n", "Cannot find 'Object' string in parameters file");
                                     params_switch[0] = 0;
                                     break; }
                                 
-                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
+                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("squircle",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
                                     printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
                                     params_switch[4] = 0;
                                     break; }
@@ -138,7 +141,11 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                                     printf("%s %f\n", "b (object size) must be positive in [0,2] range, the given value is", b);
                                     params_switch[9] = 0;
                                     break; }
-                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0,  a, b);                           
+                                if ((s <= 0) || (s > 1)) {
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    params_switch[10] = 0;
+                                    break; }
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \na : %f \nb : %f \ns : %f \n", tmpstr2, C0, x0, y0,  a, b, s);
                             }
                         }
                         else {
@@ -146,11 +153,11 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                             //printf("\n %s %i %s \n", "Temporal 2D + time model", ModelSelected, " is selected");
                             /* temporal phantom 2D + time (3D) */
                             
-                            float C1 = 0.0f, x1 = 0.0f, y1 = 0.0f, a1 = 0.0f, b1 = 0.0f;
+                            float C1 = 0.0f, x1 = 0.0f, y1 = 0.0f, a1 = 0.0f, b1 = 0.0f, s1 = 1.0f;
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
                                 
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {                                   
                                    printf("%s \n", "Unexpected the end of the line (objects loop) in parameters file");
                                    params_switch[0] = 0;
@@ -162,13 +169,14 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                                     y0 = (float)atof(tmpstr5); /* y0 position */
                                     a = (float)atof(tmpstr6); /* a - size object */
                                     b = (float)atof(tmpstr7); /* b - size object */
+                                    s = (float)atof(tmpstr9); /* s - straightness */
                                 }
                                 else {
                                     printf("%s \n", "Cannot find 'Object' string in parameters file");
                                     params_switch[0] = 0;
                                     break; }
                                 
-                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
+                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("squircle",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
                                     printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
                                     params_switch[4] = 0;
                                     break; }
@@ -192,10 +200,14 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                                     printf("%s %f\n", "b (object size) must be positive in [0,2] range, the given value is", b);
                                     params_switch[9] = 0;
                                     break; }
-                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0, a, b);
+                                if ((s <= 0) || (s > 1)) {
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    params_switch[10] = 0;
+                                    break; }
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \na : %f \nb : %f \ns : %f \n", tmpstr2, C0, x0, y0, a, b, s);
                                 
                                 /* check Endvar relatedparameters */
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                     printf("%s \n", "Unexpected the end of the line (Endvar loop) in parameters file");
                                     params_switch[0] = 0;
@@ -207,6 +219,7 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                                     y1 = (float)atof(tmpstr5); /* y0 position */
                                     a1 = (float)atof(tmpstr6); /* a - size object */
                                     b1 = (float)atof(tmpstr7); /* b - size object */
+                                    s1 = (float)atof(tmpstr9); /* s - straightness */
                                 }
                                 else {
                                     printf("%s \n", "Cannot find 'Endvar' string in parameters file");
@@ -232,6 +245,10 @@ float checkParams2D(int *params_switch, int ModelSelected, char *ModelParameters
                                 if ((b1 <= 0) || (b1 > 2)) {
                                     printf("%s %f\n", "Endvar b1 (object size) must be positive in [0,2] range, the given value is", b1);
                                     params_switch[9] = 0;
+                                    break; }
+                                if ((s1 <= 0) || (s1 > 1)) {
+                                    printf("%s %f\n", "s1 (straightness) must be positive in [0,1] range, the given value is", s1);
+                                    params_switch[10] = 0;
                                     break; }
                              } /*components loop*/
                         }
@@ -265,6 +282,7 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
     char tmpstr10[16];
     char tmpstr11[16];
     char tmpstr12[16];
+    char tmpstr13[16];
     
     params_switch[0] = 1; /* parameters file */
     params_switch[1] = 0; /* model */
@@ -326,7 +344,7 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
                                 
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12, tmpstr13);
                                 else {
                                     params_switch[0] = 0;
                                     printf("%s\n", "Unexpected the end of the line (objecta loop) in parameters file");
@@ -339,14 +357,15 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                                     z0 = (float)atof(tmpstr6); /* y0 position */
                                     a = (float)atof(tmpstr7); /* a - size object */
                                     b = (float)atof(tmpstr8); /* b - size object */
-                                    c = (float)atof(tmpstr9); /* b - size object */
+                                    c = (float)atof(tmpstr9); /* c - size object */
+                                    s = (float)atof(tmpstr13); /* s - straightness */
                                 }
                                 else {
                                     params_switch[0] = 0;
                                     printf("%s\n", "Cannot find 'Object' string in parameters file");
                                     break; }
                                 
-                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("paraboloid",tmpstr2) != 0) && (strcmp("ellipsoid",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("cuboid",tmpstr2) != 0) && (strcmp("elliptical_cylinder",tmpstr2) != 0) ) {
+                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("paraboloid",tmpstr2) != 0) && (strcmp("ellipsoid",tmpstr2) != 0) && (strcmp("sphube",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("cuboid",tmpstr2) != 0) && (strcmp("elliptical_cylinder",tmpstr2) != 0) ) {
                                     printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
                                     params_switch[4] = 0;
                                     break; }
@@ -378,7 +397,11 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                                     params_switch[11] = 0;
                                     printf("%s %f\n", "c (object size) must be positive in [0,2] range, the given value is", c);
                                     break; }
-                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
+                                if ((s <= 0) || (s > 1)) {
+                                    params_switch[12] = 0;
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    break; }
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \ns : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c, s);
                             }
                         }
                         else {                            
@@ -386,7 +409,7 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
                                 
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12, tmpstr13);
                                 else {
                                     params_switch[0] = 0;
                                     printf("%s\n", "Unexpected the end of the line (objecta loop) in parameters file");
@@ -400,13 +423,14 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                                     a = (float)atof(tmpstr7); /* a - size object */
                                     b = (float)atof(tmpstr8); /* b - size object */
                                     c = (float)atof(tmpstr9); /* b - size object */
+                                    s = (float)atof(tmpstr13); /* s - straightness */
                                 }
                                 else {
                                     params_switch[0] = 0;
                                     printf("%s\n", "Cannot find 'Object' string in parameters file");
                                     break; }
                                 
-                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("paraboloid",tmpstr2) != 0) && (strcmp("ellipsoid",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("cuboid",tmpstr2) != 0) && (strcmp("elliptical_cylinder",tmpstr2) != 0) ) {
+                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("paraboloid",tmpstr2) != 0) && (strcmp("ellipsoid",tmpstr2) != 0) && (strcmp("sphube",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("cuboid",tmpstr2) != 0) && (strcmp("elliptical_cylinder",tmpstr2) != 0) ) {
                                     printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
                                     params_switch[4] = 0;
                                     break; }
@@ -438,10 +462,14 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                                     params_switch[11] = 0;
                                     printf("%s %f\n", "c (object size) must be positive in [0,2] range, the given value is", c);
                                     break; }
+                                if ((s <= 0) || (s > 1)) {
+                                    params_switch[12] = 0;
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    break; }
                                 // printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
                                 
                                 /* check Endvar relatedparameters */
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9, tmpstr10, tmpstr11, tmpstr12, tmpstr13);
                                 else {
                                     params_switch[0] = 0;
                                     printf("%s\n", "Unexpected the end of the line (Endvar loop) in parameters file");
@@ -455,6 +483,7 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                                     a = (float)atof(tmpstr7); /* a - size object */
                                     b = (float)atof(tmpstr8); /* b - size object */
                                     c = (float)atof(tmpstr9); /* b - size object */
+                                    s = (float)atof(tmpstr13); /* s - straightness */
                                 }
                                 else {
                                     params_switch[0] = 0;
@@ -489,7 +518,11 @@ float checkParams3D(int *params_switch, int ModelSelected, char *ModelParameters
                                     params_switch[11] = 0;
                                     printf("%s %f\n", "Endvar c (object size) must be positive in [0,2] range, the given value is", c);
                                     break; }
-                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
+                                if ((s <= 0) || (s > 1)) {
+                                    params_switch[12] = 0;
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    break; }
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \ns : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c, s);
                             } /*components loop*/
                         }
                         params_switch[1] = 1;

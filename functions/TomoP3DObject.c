@@ -47,7 +47,7 @@ void mexFunction(
     int N;
     float *A;
     char *tmpstr2;
-    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, z0 = 0.0f, a = 0.0f, b = 0.0f, c = 0.0f, psi_gr1 = 0.0f, psi_gr2 = 0.0f, psi_gr3 = 0.0f;
+    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, z0 = 0.0f, a = 0.0f, b = 0.0f, c = 0.0f, psi_gr1 = 0.0f, psi_gr2 = 0.0f, psi_gr3 = 0.0f, s = 1.0;
     
     tmpstr2 = mxArrayToString(prhs[0]); /* name of the object */
     C0 = (float) mxGetScalar(prhs[1]); /* intensity */
@@ -61,15 +61,16 @@ void mexFunction(
     psi_gr2 = (float) mxGetScalar(prhs[9]); /* rotation angle 2*/
     psi_gr3 = (float) mxGetScalar(prhs[10]); /* rotation angle 3*/
     N  = (int) mxGetScalar(prhs[11]); /* choosen dimension (N x N x N) */
+    s = (float) mxGetScalar(prhs[12]);
     
     /*Handling Matlab input data*/
-    if (nrhs != 12) mexErrMsgTxt("Input of 12 parameters is required");   
+    if (nrhs != 13) mexErrMsgTxt("Input of 13 parameters is required");
     
     const mwSize N_dims[3] = {N, N, N}; /* image dimensions */
     A = (float*)mxGetPr(plhs[0] = mxCreateNumericArray(3, N_dims, mxSINGLE_CLASS, mxREAL)); /*output array*/
     
     
-    if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("paraboloid",tmpstr2) != 0) && (strcmp("ellipsoid",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("cuboid",tmpstr2) != 0) && (strcmp("ellipticalcylinder",tmpstr2) != 0) ) {
+    if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("paraboloid",tmpstr2) != 0) && (strcmp("ellipsoid",tmpstr2) != 0) && (strcmp("sphube",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("cuboid",tmpstr2) != 0) && (strcmp("ellipticalcylinder",tmpstr2) != 0) ) {
         printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
         mexErrMsgTxt("Unknown name of the object");
         }
@@ -101,8 +102,12 @@ void mexFunction(
         printf("%s %f\n", "c (object size) must be positive in [0,2] range, the given value is", c);
         mexErrMsgTxt("c (object size) must be positive in [0,2] range");
         }
-    printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
+    if ((s <= 0) || (s > 1)) {
+        printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+        mexErrMsgTxt("s (straightness) must be positive in [0,1] range");
+        }
+    printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \ns : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c, s);
     
-    TomoP3DObject_core(A, N, tmpstr2, C0, x0, y0, z0, b, a, c, -psi_gr1, psi_gr2, psi_gr3, 0, 1.0); /* Matlab */
+    TomoP3DObject_core(A, N, tmpstr2, C0, x0, y0, z0, b, a, c, -psi_gr1, psi_gr2, psi_gr3, 0, s); /* Matlab */
     mxFree(tmpstr2);
 }

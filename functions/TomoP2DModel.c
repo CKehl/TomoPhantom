@@ -50,7 +50,7 @@ void mexFunction(
     N  = (int) mxGetScalar(prhs[1]); /* choosen dimension (N x N x N) */
     
     int Model=0, Components=0, steps = 0, counter=0, ii;
-    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, a = 0.0f, b = 0.0f, psi_gr1;
+    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, a = 0.0f, b = 0.0f, psi_gr1, s=1.0;
     
     char *filename;
     FILE * fp;
@@ -74,6 +74,7 @@ void mexFunction(
         char tmpstr6[16];
         char tmpstr7[16];
         char tmpstr8[16];
+        char tmpstr9[16];
         
         while (fgets(str, MAXCHAR, fp) != NULL)
         {
@@ -114,7 +115,7 @@ void mexFunction(
                             
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                     mexErrMsgTxt("Unexpected the end of the line (objects loop) in parameters file");
                                     break; }
@@ -126,12 +127,13 @@ void mexFunction(
                                     a = (float)atof(tmpstr6); /* a - size object */
                                     b = (float)atof(tmpstr7); /* b - size object */
                                     psi_gr1 = (float)atof(tmpstr8); /* rotation angle 1*/
+                                    s = (float)atof(tmpstr9); /* straightness */
                                 }
                                 else {
                                     mexErrMsgTxt("Cannot find 'Object' string in parameters file");
                                     break; }
                                 
-                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
+                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("squircle",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
                                     printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
                                     mexErrMsgTxt("Unknown name of the object");
                                     break; }
@@ -155,9 +157,13 @@ void mexFunction(
                                     printf("%s %f\n", "b (object size) must be positive in [0,2] range, the given value is", b);
                                     mexErrMsgTxt("b (object size) must be positive in [0,2] range");
                                     break; }
-                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0,  a, b);
+                                if ((s <= 0) || (s > 1)) {
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    mexErrMsgTxt("s (straightness) must be positive in [0,1] range");
+                                    break; }
+                                printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \na : %f \nb : %f \ns : %f\n", tmpstr2, C0, x0, y0, a, b, s);
                                 
-                                TomoP2DObject_core(A, N, tmpstr2, C0, x0, y0, b, a, -psi_gr1, 0);  /* Matlab */
+                                TomoP2DObject_core(A, N, tmpstr2, C0, x0, y0, b, a, -psi_gr1, 0, s);  /* Matlab */
                             }
                         }
                         else {
@@ -167,11 +173,11 @@ void mexFunction(
                             const mwSize N_dims[3] = {N, N, steps}; /* image dimensions */
                             A = (float*)mxGetPr(plhs[0] = mxCreateNumericArray(3, N_dims, mxSINGLE_CLASS, mxREAL));
                             
-                            float C1 = 0.0f, x1 = 0.0f, y1 = 0.0f, a1 = 0.0f, b1 = 0.0f, psi_gr1_1 = 0.0f;
+                            float C1 = 0.0f, x1 = 0.0f, y1 = 0.0f, a1 = 0.0f, b1 = 0.0f, psi_gr1_1 = 0.0f, s1 = 1.0;
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
                                 
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                     mexErrMsgTxt("Unexpected the end of the line (objects loop) in parameters file");
                                     break; }
@@ -183,12 +189,13 @@ void mexFunction(
                                     a = (float)atof(tmpstr6); /* a - size object */
                                     b = (float)atof(tmpstr7); /* b - size object */
                                     psi_gr1 = (float)atof(tmpstr8); /* rotation angle 1*/
+                                    s = (float)atof(tmpstr9); /* straightness */
                                 }
                                 else {
                                     mexErrMsgTxt("Cannot find 'Object' string in parameters file");
                                     break; }
                                 
-                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
+                                if ((strcmp("gaussian",tmpstr2) != 0) && (strcmp("parabola",tmpstr2) != 0) && (strcmp("squircle",tmpstr2) != 0) && (strcmp("ellipse",tmpstr2) != 0) && (strcmp("parabola1",tmpstr2) != 0) && (strcmp("cone",tmpstr2) != 0) && (strcmp("rectangle",tmpstr2) != 0) ) {
                                     printf("%s %s\n", "Unknown name of the object, the given name is", tmpstr2);
                                     mexErrMsgTxt("Unknown name of the object");
                                     break; }
@@ -212,10 +219,14 @@ void mexFunction(
                                     printf("%s %f\n", "b (object size) must be positive in [0,2] range, the given value is", b);
                                     mexErrMsgTxt("b (object size) must be positive in [0,2] range");
                                     break; }
+                                if ((s <= 0) || (s > 1)) {
+                                    printf("%s %f\n", "s (straightness) must be positive in [0,1] range, the given value is", s);
+                                    mexErrMsgTxt("s (straightness) must be positive in [0,1] range");
+                                    break; }
                                 // printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \n", tmpstr2, C0, x0, y0, z0, a, b, c);
                                 
                                 /* check Endvar relatedparameters */
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                     mexErrMsgTxt("Unexpected the end of the line (Endvar loop) in parameters file");
                                     break; }
@@ -227,6 +238,7 @@ void mexFunction(
                                     a1 = (float)atof(tmpstr6); /* a - size object */
                                     b1 = (float)atof(tmpstr7); /* b - size object */
                                     psi_gr1_1 = (float)atof(tmpstr8); /* rotation angle 1*/
+                                    s1 = (float)atof(tmpstr9); /* straightness */
                                 }
                                 else {
                                     printf("%s\n", "Cannot find 'Endvar' string in parameters file");
@@ -252,6 +264,10 @@ void mexFunction(
                                     printf("%s %f\n", "Endvar b1 (object size) must be positive in [0,2] range, the given value is", b1);
                                     mexErrMsgTxt("Endvar b (object size) must be positive in [0,2] range");
                                     break; }
+                                if ((s1 <= 0) || (s1 > 1)) {
+                                    printf("%s %f\n", "s1 (straightness) must be positive in [0,1] range, the given value is", s);
+                                    mexErrMsgTxt("s1 (straightness) must be positive in [0,1] range");
+                                    break; }
                                 //printf("\nObject : %s \nC0 : %f \nx0 : %f \ny0 : %f \nz0 : %f \na : %f \nb : %f \nc : %f \n", tmpstr2, C0, x0, y0, z0, a1, b1, c1);
                                 
                                 /*now we know the initial parameters of the object and the final ones. We linearly extrapolate to establish steps and coordinates. */
@@ -262,15 +278,16 @@ void mexFunction(
                                 float a_step = (a1 - a)/(steps-1);
                                 float b_step = (b1 - b)/(steps-1);
                                 float phi_rot_step = (psi_gr1_1 - psi_gr1)/(steps-1);
+                                float s_step = (s1 - s)/(steps-1);
                                 
                                 int tt;
                                 float x_t, y_t, a_t, b_t, C_t, phi_t, d_step;
                                 /* initialize */
-                                x_t = x0; y_t = y0; a_t = a; b_t = b; C_t = C0; phi_t = psi_gr1; d_step = d_dist;
+                                x_t = x0; y_t = y0; a_t = a; b_t = b; C_t = C0; phi_t = psi_gr1; d_step = d_dist; s_t = s;
                                 /*loop over time frames*/
                                 for(tt=0; tt < steps; tt++) {
                                     
-                                    TomoP2DObject_core(A, N, tmpstr2, C_t, x_t, y_t, b_t, a_t, -phi_t, tt);  /* Matlab */
+                                    TomoP2DObject_core(A, N, tmpstr2, C_t, x_t, y_t, b_t, a_t, -phi_t, tt, s_t);  /* Matlab */
                                     
                                     /* calculating new coordinates of an object */
                                     if (distance != 0.0f) {
@@ -286,6 +303,7 @@ void mexFunction(
                                     b_t += b_step;
                                     C_t += C_step;
                                     phi_t += phi_rot_step;
+                                    s_t += s_step;
                                 } /*time steps*/
                                 
                             } /*components loop*/

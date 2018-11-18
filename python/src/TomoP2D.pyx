@@ -27,7 +27,7 @@ from enum import Enum
 
 # declare the interface to the C code
 cdef extern float TomoP2DModel_core(float *A, int ModelSelected, int N, char* ModelParametersFilename)
-cdef extern float TomoP2DObject_core(float *A, int N, char *Object, float C0, float x0, float y0, float a, float b, float phi_rot, int tt)
+cdef extern float TomoP2DObject_core(float *A, int N, char *Object, float C0, float x0, float y0, float a, float b, float phi_rot, int tt, float s)
 cdef extern float TomoP2DModelSino_core(float *A, int ModelSelected, int N, int P, float *Th, int AngTot, int CenTypeIn, char* ModelParametersFilename)
 cdef extern float TomoP2DObjectSino_core(float *A, int N, int P, float *Th, int AngTot, int CenTypeIn, char *Object, float C0, float x0, float y0, float a, float b, float phi_rot, int tt)
 cdef extern float checkParams2D(int *params_switch, int ModelSelected, char *ModelParametersFilename)
@@ -40,6 +40,8 @@ cdef packed struct object_2d:
     np.float32_t a
     np.float32_t b
     np.float32_t phi_rot
+    int tt
+    np.float32_t s
     
 class Objects2D(Enum):
     '''Enumeration with the available objects for 2D phantoms'''
@@ -48,6 +50,7 @@ class Objects2D(Enum):
     PARABOLA1 = 'parabola1'
     ELLIPSE   = 'ellipse'
     CONE      = 'cone'
+    SQUIRCLE  = 'squircle'
     RECTANGLE = 'rectangle'
 
 @cython.boundscheck(False)
@@ -278,7 +281,9 @@ def Object(int phantom_size, objlist):
                                         obj['y0'], 
                                         obj['b'], 
                                         obj['a'], 
-                                        obj['phi'], 0)
+                                        obj['phi'],
+                                        obj['tt'],
+                                        obj['s'])
     return phantom
 
 
@@ -305,6 +310,12 @@ def testParams(obj):
     typecheck = typecheck and type(obj['phi']) is float
     if not typecheck:
         raise TypeError('phi is not a float')
+    typecheck = typecheck and type(obj['tt']) is int
+    if not typecheck:
+        raise TypeError('tt is not a int')
+    typecheck = typecheck and type(obj['s']) is float
+    if not typecheck:
+        raise TypeError('s is not a float')
     
     # range check    
     rangecheck = obj['x0'] >= -1 and obj['x0'] <= 1
@@ -319,6 +330,12 @@ def testParams(obj):
     rangecheck = rangecheck and obj['b'] > 0 and obj['b'] <= 2
     if not rangecheck:
         raise ValueError('b (object size) must be positive in [0,2] range')
+    rangecheck = rangecheck and obj['tt'] >= 0
+    if not rangecheck:
+        raise ValueError('tt (time step) must be positive in [0,:] range')
+    rangecheck = rangecheck and obj['s'] > 0 and obj['s'] <= 1
+    if not rangecheck:
+        raise ValueError('s (straightness) must be positive in [0,1] range')
     return rangecheck and typecheck
 
 
@@ -343,4 +360,6 @@ def testParams2D(obj):
          raise TypeError('a (object size) must be positive in [0,2] range, check <Phantom2DLibrary.dat> file')
     if obj[9] == 0:
          raise TypeError('b (object size) must be positive in [0,2] range, check <Phantom2DLibrary.dat> file')
+    if obj[10] == 0:
+         raise TypeError('s (straightness) must be positive in [0,1] range, check <Phantom2DLibrary.dat> file')
     return 0

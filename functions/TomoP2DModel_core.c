@@ -47,14 +47,15 @@ float TomoP2DObject_core(float *A, int N, char *Object,
         float a , /* a - size object */
         float b , /* b - size object */
         float phi_rot, /* phi - rotation angle */
-        int tt /* time frame loop */)
+        int tt, /* time frame loop */
+		float s)
 {
 //#ifdef DEBUG
 //    printf ("Base C0 %.2e x0 %.2e y0 %.2e a %.2e b %.2e phi %.2e\n" , C0, x0, y0, a, b, phi_rot);
 //#endif
                                 
     int i, j;
-    float *Tomorange_X_Ar=NULL, Tomorange_Xmin, Tomorange_Xmax, H_x, C1, a2, b2, phi_rot_radian, sin_phi, cos_phi;
+    float *Tomorange_X_Ar=NULL, Tomorange_Xmin, Tomorange_Xmax, H_x, C1, a2, b2, s2, phi_rot_radian, sin_phi, cos_phi;
     float *Xdel = NULL, *Ydel = NULL, T;
     Tomorange_X_Ar = malloc(N*sizeof(float));
     Tomorange_Xmin = -1.0f;
@@ -76,6 +77,8 @@ float TomoP2DObject_core(float *A, int N, char *Object,
     
     a2 = 1.0f/(a*a);
     b2 = 1.0f/(b*b);
+    s2 = powf(s,2);
+    float aa,bb,tX,tY;
     
     /* all parameters of an object have been extracted, now run the building modules */
     if (strcmp("gaussian",Object) == 0) {
@@ -131,6 +134,24 @@ float TomoP2DObject_core(float *A, int N, char *Object,
                 A[tt*N*N + j*N+i] += T;
             }}
     }
+    else if (strcmp("sqircle",Object) == 0) {
+        /* the object is an spherical cube */
+#pragma omp parallel for shared(A) private(i,j,T,aa,bb,tX,tY)
+        for(i=0; i<N; i++) {
+            for(j=0; j<N; j++) {
+            	tX = Xdel[i]*cos_phi;
+            	tY = Ydel[j]*sin_phi;
+                aa = a2*powf(tX,2);
+                bb = b2*powf(tY,2);
+				T = (aa+bb) - (s2*aa*bb);
+				if ( (T <= 1.0f) && (fabs(tX) < (a/s)) && (fabs(tY) < (b/s)) ) {
+					//printf("(%i,%i,%i) is inside.\n",i,j,k);
+					T = C0;
+				} else { T = 0.0f; }
+				A[tt*N*N + j*N+i] += T;
+            }
+        }
+    }
     else if (strcmp("rectangle",Object) == 0) {
         /* the object is a rectangle */
         float x0r, y0r, HX, HY;
@@ -168,7 +189,7 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
 {
     FILE *fp = fopen(ModelParametersFilename, "r"); // read parameters file    
     int Model=0, Components=0, steps = 0, counter=0, ii;
-    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, a = 0.0f, b = 0.0f, psi_gr1 = 0.0f;
+    float C0 = 0.0f, x0 = 0.0f, y0 = 0.0f, a = 0.0f, b = 0.0f, psi_gr1 = 0.0f, s=1.0;
     
     if( fp == NULL ) {
         printf("%s \n","Cannot open the model library file (Phantom2DLibrary.dat)");
@@ -184,6 +205,7 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
         char tmpstr6[16];
         char tmpstr7[16];
         char tmpstr8[16];
+        char tmpstr9[16];
         
         while (fgets(str, MAXCHAR, fp) != NULL)
         {
@@ -221,7 +243,7 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                             
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %21s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                     //mexErrMsgTxt("Unexpected the end of the line (objects loop) in parameters file");
                                     break; }
@@ -233,12 +255,13 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                     a = (float)atof(tmpstr6); /* a - size object */
                                     b = (float)atof(tmpstr7); /* b - size object */
                                     psi_gr1 = (float)atof(tmpstr8); /* rotation angle 1*/
+                                    s = (float)atof(tmpstr9); /* straightness */
                                 }
                                 else {
                                     //mexErrMsgTxt("Cannot find 'Object' string in parameters file");
                                     break; }   
-                                printf ("C0 %.2e x0 %.2e y0 %.2e a %.2e b %.2e phi %.2e\n" , C0, x0, y0, a, b, psi_gr1);                            
-                                TomoP2DObject_core(A, N, tmpstr2, C0, y0, x0, a, b, psi_gr1, 0); /* python */
+                                printf ("C0 %.2e x0 %.2e y0 %.2e a %.2e b %.2e phi %.2e s %.2e\n" , C0, x0, y0, a, b, psi_gr1, s);
+                                TomoP2DObject_core(A, N, tmpstr2, C0, y0, x0, a, b, psi_gr1, 0, s); /* python */
                             }
                         }
                         else {
@@ -250,7 +273,7 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                             /* loop over all components */
                             for(ii=0; ii<Components; ii++) {
                                 
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr2, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                    // mexErrMsgTxt("Unexpected the end of the line (objects loop) in parameters file");
                                     break; }
@@ -262,13 +285,14 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                     a = (float)atof(tmpstr6); /* a - size object */
                                     b = (float)atof(tmpstr7); /* b - size object */
                                     psi_gr1 = (float)atof(tmpstr8); /* rotation angle 1*/
+                                    s = (float)atof(tmpstr9); /* straightness */
                                 }
                                 else {
                                    // mexErrMsgTxt("Cannot find 'Object' string in parameters file");
                                     break; }                               
 
                                 /* check Endvar relatedparameters */
-                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8);
+                                if (fgets(str, MAXCHAR, fp) != NULL) sscanf(str, "%15s : %15s %15s %15s %15s %15s %15s %15[^;];", tmpstr1, tmpstr3, tmpstr4, tmpstr5, tmpstr6, tmpstr7, tmpstr8, tmpstr9);
                                 else {
                                    // mexErrMsgTxt("Unexpected the end of the line (Endvar loop) in parameters file");
                                     break; }
@@ -280,6 +304,7 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                     a1 = (float)atof(tmpstr6); /* a - size object */
                                     b1 = (float)atof(tmpstr7); /* b - size object */
                                     psi_gr1_1 = (float)atof(tmpstr8); /* rotation angle 1*/
+                                    s = (float)atof(tmpstr9); /* straightness */
                                 }
                                 else {
                                     printf("%s\n", "Cannot find 'Endvar' string in parameters file");
@@ -301,7 +326,7 @@ float TomoP2DModel_core(float *A, int ModelSelected, int N, char *ModelParameter
                                 /*loop over time frames*/
                                 for(tt=0; tt < steps; tt++) {
                                     
-                                     TomoP2DObject_core(A, N, tmpstr2, C_t, x_t, -y_t, a_t, b_t, phi_t, tt); /* python */
+                                     TomoP2DObject_core(A, N, tmpstr2, C_t, x_t, -y_t, a_t, b_t, phi_t, tt, s); /* python */
                                     
                                     /* calculating new coordinates of an object */
                                     if (distance != 0.0f) {
