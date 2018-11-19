@@ -134,18 +134,18 @@ float TomoP2DObject_core(float *A, int N, char *Object,
                 A[tt*N*N + j*N+i] += T;
             }}
     }
-    else if (strcmp("sqircle",Object) == 0) {
+    else if (strcmp("squircle",Object) == 0) {
         /* the object is an spherical cube */
 #pragma omp parallel for shared(A) private(i,j,T,aa,bb,tX,tY)
         for(i=0; i<N; i++) {
             for(j=0; j<N; j++) {
-            	tX = Xdel[i]*cos_phi;
-            	tY = Ydel[j]*sin_phi;
+            	tX =  Xdel[i]*cos_phi + Ydel[j]*sin_phi;
+            	tY = -Xdel[i]*sin_phi + Ydel[j]*cos_phi;
                 aa = a2*powf(tX,2);
                 bb = b2*powf(tY,2);
 				T = (aa+bb) - (s2*aa*bb);
 				if ( (T <= 1.0f) && (fabs(tX) < (a/s)) && (fabs(tY) < (b/s)) ) {
-					//printf("(%i,%i,%i) is inside.\n",i,j,k);
+					//printf("(%i,%i) is inside.\n",i,j);
 					T = C0;
 				} else { T = 0.0f; }
 				A[tt*N*N + j*N+i] += T;
