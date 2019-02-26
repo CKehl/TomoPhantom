@@ -155,8 +155,8 @@ float TomoP2DObject_core(float *A, int N, char *Object,
     else if (strcmp("rectangle",Object) == 0) {
         /* the object is a rectangle */
         float x0r, y0r, HX, HY;
-        a2 = 0.5f*a;
-        b2 = 0.5f*b;
+        float a_half = 0.5f*a;
+        float b_half = 0.5f*b;
         x0r=x0*cosf(0.0f) + y0*sinf(0.0f);
         y0r=-x0*sinf(0.0f) + y0*cosf(0.0f);
         if (phi_rot_radian < 0.0f) {
@@ -164,14 +164,17 @@ float TomoP2DObject_core(float *A, int N, char *Object,
             sin_phi=sinf(phi_rot_radian);
             cos_phi=cosf(phi_rot_radian);
         }
-#pragma omp parallel for shared(A) private(i,j,HX,HY,T)
+		#pragma omp parallel for shared(A) private(i,j,HX,HY,T)
         for(i=0; i<N; i++) {
             for(j=0; j<N; j++) {
                 HX = fabsf((Xdel[i] - x0r)*sin_phi + (Ydel[j] - y0r)*cos_phi);
                 T = 0.0f;
-                if (HX <= a2) {
+                if (HX <= a_half) {
                     HY = fabsf((Ydel[j] - y0r)*sin_phi - (Xdel[i] - x0r)*cos_phi);
-                    if (HY <= b2) {T = C0;}
+                    if (HY <= b_half) {
+                    	//printf("(%i,%i) is inside.\n",i,j);
+                    	T = C0;
+                    }
                 }
                 A[tt*N*N + j*N+i] += T;
             }}
